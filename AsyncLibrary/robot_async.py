@@ -27,12 +27,6 @@ class AsyncLibrary:
         del self._thread_pool[handle]
         return result
 
-    def _get_handler_from_keyword(self, keyword):
-        ''' Gets the Robot Framework handler associated with the given keyword '''
-        if EXECUTION_CONTEXTS.current is None:
-            raise RobotNotRunningError('Cannot access execution context')
-        return EXECUTION_CONTEXTS.current.get_handler(keyword)
-
     def _threaded(self, keyword, *args, **kwargs):
         try:
             import queue
@@ -40,11 +34,14 @@ class AsyncLibrary:
             import Queue as queue
         import threading
         
-        def wrapped_f(q, *args, **kwargs):
+        def wrapped_f(q, *args, **kwargs): 
             ''' Calls the decorated function and puts the result in a queue '''
-            f = self._get_handler_from_keyword(keyword)
-            ret = f.run(EXECUTION_CONTEXTS.current, args)
-            q.put(ret)
+            try: 
+                context = EXECUTION_CONTEXTS.current 
+                runner = context.get_runner(keyword) 
+                ret = runner.run(Keyword(name=keyword, args=args), context) 
+                q.put(ret) 
+            except Exception as ex: print(ex)
 
         q = queue.Queue()
         t = threading.Thread(target=wrapped_f, args=(q,)+args, kwargs=kwargs)
